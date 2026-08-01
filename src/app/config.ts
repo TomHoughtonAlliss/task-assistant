@@ -13,6 +13,9 @@ const stateDirectorySchema = z.string().min(1);
 const todoistApiTokenSchema = z.string().min(1);
 const todoistApiBaseUrlSchema = z.url();
 const disableDailyRunGuardSchema = z.coerce.boolean();
+const telegramBotTokenSchema = z.string().min(1);
+const telegramChatIdSchema = z.string().min(1);
+const telegramApiBaseUrlSchema = z.url();
 const openAiApiKeySchema = z.string().min(1);
 const openAiBaseUrlSchema = z.url();
 const openAiModelSchema = z.string().min(1);
@@ -34,6 +37,9 @@ const configSchema = z
     STATE_DIR: stateDirectorySchema.default("./data"),
     DISABLE_DAILY_RUN_GUARD: disableDailyRunGuardSchema.default(false),
     TELEGRAM_RECEIVER_MODE: telegramReceiverModeSchema.default("polling"),
+    TELEGRAM_BOT_TOKEN: telegramBotTokenSchema.optional(),
+    TELEGRAM_CHAT_ID: telegramChatIdSchema.optional(),
+    TELEGRAM_API_BASE_URL: telegramApiBaseUrlSchema.default("https://api.telegram.org"),
     TODOIST_API_TOKEN: todoistApiTokenSchema.optional(),
     TODOIST_API_BASE_URL: todoistApiBaseUrlSchema.default("https://api.todoist.com/api/v1"),
     OPENAI_API_KEY: openAiApiKeySchema.optional(),
@@ -46,6 +52,22 @@ const configSchema = z
         code: z.ZodIssueCode.custom,
         path: ["TODOIST_API_TOKEN"],
         message: "TODOIST_API_TOKEN is required when TASK_PROVIDER=todoist",
+      });
+    }
+
+    if (parsed.MESSAGE_CHANNEL === "telegram" && !parsed.TELEGRAM_BOT_TOKEN) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["TELEGRAM_BOT_TOKEN"],
+        message: "TELEGRAM_BOT_TOKEN is required when MESSAGE_CHANNEL=telegram",
+      });
+    }
+
+    if (parsed.MESSAGE_CHANNEL === "telegram" && !parsed.TELEGRAM_CHAT_ID) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["TELEGRAM_CHAT_ID"],
+        message: "TELEGRAM_CHAT_ID is required when MESSAGE_CHANNEL=telegram",
       });
     }
 
@@ -74,6 +96,11 @@ const configSchema = z
       messageChannel: parsed.MESSAGE_CHANNEL,
       modelProvider: parsed.MODEL_PROVIDER,
       telegramReceiverMode: parsed.TELEGRAM_RECEIVER_MODE,
+      telegram: {
+        botToken: telegramBotTokenSchema.parse(parsed.TELEGRAM_BOT_TOKEN),
+        chatId: telegramChatIdSchema.parse(parsed.TELEGRAM_CHAT_ID),
+        apiBaseUrl: parsed.TELEGRAM_API_BASE_URL,
+      },
       todoist: {
         apiToken: todoistApiTokenSchema.parse(parsed.TODOIST_API_TOKEN),
         apiBaseUrl: parsed.TODOIST_API_BASE_URL,
