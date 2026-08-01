@@ -4,3 +4,30 @@ export type {
   TaskRejectionReason,
 } from "./candidate-filter.js";
 export { filterCandidateTasks } from "./candidate-filter.js";
+export type {
+  AgeSignal,
+  ComputeRankingSignalsInput,
+  DependencyHintSignal,
+  DueSignal,
+  DueStatus,
+  EffortHintSignal,
+  PrioritySignal,
+  RankingPayload,
+  RankingPayloadEntry,
+  RecentSelectionSignal,
+  TaskRankingSignals,
+} from "./ranking-signals.js";
+export {
+  ageSignalSchema,
+  computeRankingPayload,
+  computeTaskRankingSignals,
+  dependencyHintSignalSchema,
+  dueSignalSchema,
+  dueStatusSchema,
+  effortHintSignalSchema,
+  prioritySignalSchema,
+  rankingPayloadEntrySchema,
+  rankingPayloadSchema,
+  recentSelectionSignalSchema,
+  taskRankingSignalsSchema,
+} from "./ranking-signals.js";
