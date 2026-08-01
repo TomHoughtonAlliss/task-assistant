@@ -105,6 +105,7 @@ function isActiveSnooze(snooze: SnoozeRecord, now: string): boolean {
 function collectTaskRejectionReasons(
   task: Task,
   activeSnoozesByTaskId: ReadonlyMap<string, SnoozeRecord[]>,
+  now: string,
 ): TaskRejectionReason[] {
   const reasons: TaskRejectionReason[] = [];
 
