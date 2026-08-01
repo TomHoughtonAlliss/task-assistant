@@ -24,7 +24,7 @@ The main replaceable interfaces are:
 - `TaskProvider`: lists tasks and performs approved task mutations;
 - `StateStore`: persists runs, selections, messages, conversation context, and action records;
 - `MessageChannel`: sends outbound messages and normalises inbound ones;
-- `ModelProvider`: produces structured daily selections and conversational replies from bounded inputs;
+- `ModelProvider`: produces structured daily selections, messages, and conversational replies from bounded inputs;
 - `Scheduler`: triggers the daily-review use case and relies on the run guard for idempotency.
 
 Core business logic should depend on those interfaces and plain application/domain types only.
@@ -53,8 +53,10 @@ Daily review:
 3. Task provider lists incomplete tasks.
 4. Application logic filters and ranks candidates.
 5. Model provider chooses the bounded daily selection.
-6. Message text is generated and delivered through the message channel.
-7. State store records the run, selection, and delivery result.
+6. Model provider generates the initial daily message contents, using the selection and other prompts.
+7. Message is delivered through the message channel.
+8. State store records the run, selection, and delivery result.
+9. This message begins the conversation for the day.
 
 Reply handling:
 
