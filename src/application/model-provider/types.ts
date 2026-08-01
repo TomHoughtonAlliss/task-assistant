@@ -94,6 +94,18 @@ export type ModelProviderResult<T> =
     };
 
 /**
+ * Structured model-generated daily opener delivered through the outbound message channel.
+ */
+export const dailyMessageSchema = z.object({
+  body: z.string().min(1),
+});
+
+/**
+ * Structured model-generated daily opener delivered through the outbound message channel.
+ */
+export type DailyMessage = z.infer<typeof dailyMessageSchema>;
+
+/**
  * Input for the bounded daily-selection model call.
  */
 export interface DailySelectionRequest {
@@ -109,6 +121,20 @@ export interface DailySelectionRequest {
    * Serializable deterministic ranking payload produced before model selection.
    */
   rankingPayload: RankingPayload;
+}
+
+/**
+ * Input for the initial daily-message model call.
+ */
+export interface DailyMessageRequest {
+  /**
+   * Current user-local calendar date in `YYYY-MM-DD` format.
+   */
+  localDate: string;
+  /**
+   * Tasks that should be referenced by the model when composing the opener.
+   */
+  tasks: Task[];
 }
 
 /**
@@ -152,6 +178,12 @@ export interface ModelProvider {
     request: DailySelectionRequest,
   ): Promise<ModelProviderResult<TaskSelection>>;
   /**
+   * Produces the initial friendly daily message using only the supplied tasks.
+   */
+  generateDailyMessage(
+    request: DailyMessageRequest,
+  ): Promise<ModelProviderResult<DailyMessage>>;
+  /**
    * Produces a task-focused conversational reply using the shared reply schema.
    */
   generateConversationReply(
@@ -163,6 +195,7 @@ export interface ModelProvider {
  * Shared structured-output schemas required at the model-provider boundary.
  */
 export const modelProviderStructuredOutputs = {
+  dailyMessage: dailyMessageSchema,
   taskSelection: taskSelectionSchema,
   conversationReply: conversationReplySchema,
   rankingPayload: rankingPayloadSchema,

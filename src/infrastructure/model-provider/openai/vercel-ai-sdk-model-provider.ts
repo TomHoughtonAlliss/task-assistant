@@ -3,6 +3,8 @@ import { generateText, NoObjectGeneratedError, Output } from "ai";
 import type { AppConfig } from "../../../app/config.js";
 import type {
   ConversationReplyRequest,
+  DailyMessage,
+  DailyMessageRequest,
   DailySelectionRequest,
   ModelProvider,
   ModelProviderError,
@@ -13,6 +15,8 @@ import type { ConversationReply, TaskSelection } from "../../../domain/index.js"
 import {
   buildConversationReplyPrompt,
   buildConversationReplySystemPrompt,
+  buildDailyMessagePrompt,
+  buildDailyMessageSystemPrompt,
   buildDailySelectionPrompt,
   buildDailySelectionSystemPrompt,
 } from "./prompt-builders.js";
@@ -73,6 +77,32 @@ export class VercelAiSdkOpenAiModelProvider implements ModelProvider {
         }),
         system: buildDailySelectionSystemPrompt(),
         prompt: buildDailySelectionPrompt(request),
+      });
+
+      return {
+        ok: true,
+        value: result.output,
+      };
+    } catch (error: unknown) {
+      return mapModelProviderFailure(error);
+    }
+  }
+
+  /**
+   * Produces the initial friendly daily message using the shared daily-message schema.
+   */
+  public async generateDailyMessage(
+    request: DailyMessageRequest,
+  ): Promise<ModelProviderResult<DailyMessage>> {
+    try {
+      const result = await generateText({
+        model: this.modelFactory(this.modelId),
+        output: Output.object({
+          schema: modelProviderStructuredOutputs.dailyMessage,
+          name: "daily_message",
+        }),
+        system: buildDailyMessageSystemPrompt(),
+        prompt: buildDailyMessagePrompt(request),
       });
 
       return {

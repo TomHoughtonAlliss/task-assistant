@@ -1,5 +1,7 @@
 export type {
   ConversationReplyRequest,
+  DailyMessage,
+  DailyMessageRequest,
   DailySelectionRequest,
   ModelProvider,
   ModelProviderError,
@@ -9,6 +11,7 @@ export type {
   ModelProviderResult,
 } from "./types.js";
 export {
+  dailyMessageSchema,
   modelProviderErrorCodeSchema,
   modelProviderNameSchema,
   modelProviderStructuredOutputs,
