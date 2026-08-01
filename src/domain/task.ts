@@ -17,6 +17,19 @@ export type TaskPriority = z.infer<typeof taskPrioritySchema>;
 
 const isoDateSchema = z.iso.date();
 const isoDateTimeSchema = z.iso.datetime({ offset: true });
+const floatingDateTimePattern =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?$/;
+
+/**
+ * Date-time strings accepted by the domain, including fixed-offset timestamps and floating local timestamps.
+ */
+export const taskDateTimeValueSchema = z.union([
+  z.iso.datetime({ offset: true }),
+  z.string().regex(
+    floatingDateTimePattern,
+    "Expected an ISO date-time with offset or a floating local timestamp",
+  ),
+]);
 
 /**
  * Date-only due information for tasks that are due on a local calendar date.
@@ -31,7 +44,7 @@ export const taskDueDateOnlySchema = z.object({
  */
 export const taskDueDateTimeSchema = z.object({
   kind: z.literal("date-time"),
-  dateTime: isoDateTimeSchema,
+  dateTime: taskDateTimeValueSchema,
   timezone: z.string().min(1).optional(),
 });
 
