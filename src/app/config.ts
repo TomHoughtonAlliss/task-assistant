@@ -12,6 +12,7 @@ const jitterMinutesSchema = z.number().int().min(0).max(60);
 const stateDirectorySchema = z.string().min(1);
 const todoistApiTokenSchema = z.string().min(1);
 const todoistApiBaseUrlSchema = z.url();
+const disableDailyRunGuardSchema = z.coerce.boolean();
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -28,6 +29,7 @@ const configSchema = z
     MESSAGE_CHANNEL: messageChannelSchema.default("telegram"),
     MODEL_PROVIDER: modelProviderSchema.default("openai"),
     STATE_DIR: stateDirectorySchema.default("./data"),
+    DISABLE_DAILY_RUN_GUARD: disableDailyRunGuardSchema.default(false),
     TELEGRAM_RECEIVER_MODE: telegramReceiverModeSchema.default("polling"),
     TODOIST_API_TOKEN: todoistApiTokenSchema.optional(),
     TODOIST_API_BASE_URL: todoistApiBaseUrlSchema.default("https://api.todoist.com/api/v1"),
@@ -65,6 +67,7 @@ const configSchema = z
     },
     state: {
       directory: parsed.STATE_DIR,
+      disableDailyRunGuard: parsed.DISABLE_DAILY_RUN_GUARD,
     },
   }));
 

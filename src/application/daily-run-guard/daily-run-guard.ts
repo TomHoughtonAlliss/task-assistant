@@ -1,6 +1,7 @@
 import type { StateStore } from "../state-store/index.js";
 import type {
   AcquireDailyRunInput,
+  DailyRunGuardOptions,
   DailyRunGuardResult,
   UpdateDailyRunStatusInput,
 } from "./types.js";
@@ -10,18 +11,42 @@ import type {
  */
 export class DailyRunGuard {
   private readonly stateStore: StateStore;
+  private readonly disabled: boolean;
 
   /**
    * Creates a daily-run guard backed by the shared state-store boundary.
    */
-  public constructor(stateStore: StateStore) {
+  public constructor(
+    stateStore: StateStore,
+    options: DailyRunGuardOptions = {},
+  ) {
     this.stateStore = stateStore;
+    this.disabled = options.disabled ?? false;
   }
 
   /**
    * Attempts to acquire the daily run for one user and local date.
    */
   public acquire(input: AcquireDailyRunInput): DailyRunGuardResult {
+    // Bypass acquisition logic if daily-guard is disabled.
+    if (this.disabled) {
+      return {
+        decision: "acquired",
+        run: {
+          id: input.runId,
+          userKey: input.userKey,
+          runKey: createBypassedDailyRunKey(
+            input.userKey,
+            input.localDate,
+            input.runId,
+          ),
+          localDate: input.localDate,
+          status: "reserved",
+          startedAt: input.now,
+        },
+      };
+    }
+
     const run = {
       id: input.runId,
       userKey: input.userKey,
@@ -81,6 +106,17 @@ export class DailyRunGuard {
  */
 export function createDailyRunKey(userKey: string, localDate: string): string {
   return `${userKey}:${localDate}`;
+}
+
+/**
+ * Derives a unique run key for testing when idempotency enforcement is disabled.
+ */
+function createBypassedDailyRunKey(
+  userKey: string,
+  localDate: string,
+  runId: string,
+): string {
+  return `${createDailyRunKey(userKey, localDate)}:bypass:${runId}`;
 }
 
 /**

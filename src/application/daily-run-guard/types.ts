@@ -68,3 +68,13 @@ export interface UpdateDailyRunStatusInput {
    */
   errorMessage?: string;
 }
+
+/**
+ * Optional runtime behavior for the daily-run guard.
+ */
+export interface DailyRunGuardOptions {
+  /**
+   * Disables the idempotency reservation check and generates unique per-attempt run keys for testing.
+   */
+  disabled?: boolean;
+}
