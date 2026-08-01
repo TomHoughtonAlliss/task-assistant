@@ -10,6 +10,8 @@ const timezoneSchema = z.string();
 const localTimeSchema = z.string();
 const jitterMinutesSchema = z.number().int().min(0).max(60);
 const stateDirectorySchema = z.string().min(1);
+const todoistApiTokenSchema = z.string().min(1);
+const todoistApiBaseUrlSchema = z.url();
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -27,6 +29,17 @@ const configSchema = z
     MODEL_PROVIDER: modelProviderSchema.default("openai"),
     STATE_DIR: stateDirectorySchema.default("./data"),
     TELEGRAM_RECEIVER_MODE: telegramReceiverModeSchema.default("polling"),
+    TODOIST_API_TOKEN: todoistApiTokenSchema.optional(),
+    TODOIST_API_BASE_URL: todoistApiBaseUrlSchema.default("https://api.todoist.com/api/v1"),
+  })
+  .superRefine((parsed, context) => {
+    if (parsed.TASK_PROVIDER === "todoist" && !parsed.TODOIST_API_TOKEN) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["TODOIST_API_TOKEN"],
+        message: "TODOIST_API_TOKEN is required when TASK_PROVIDER=todoist",
+      });
+    }
   })
   .transform((parsed) => ({
     app: {
@@ -45,6 +58,10 @@ const configSchema = z
       messageChannel: parsed.MESSAGE_CHANNEL,
       modelProvider: parsed.MODEL_PROVIDER,
       telegramReceiverMode: parsed.TELEGRAM_RECEIVER_MODE,
+      todoist: {
+        apiToken: todoistApiTokenSchema.parse(parsed.TODOIST_API_TOKEN),
+        apiBaseUrl: parsed.TODOIST_API_BASE_URL,
+      },
     },
     state: {
       directory: parsed.STATE_DIR,
