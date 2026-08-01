@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import type {
   ActionRecord,
   ConversationSummaryRecord,
+  DailyRunReservation,
   DailyRunRecord,
   MessageRecord,
   SelectionHistoryEntry,
@@ -31,6 +32,122 @@ export class BetterSqliteStateStore implements StateStore {
    */
   public migrate(): void {
     applySqliteMigrations(this.database);
+  }
+
+  /**
+   * Attempts to reserve a daily run key for work, reusing failed records safely when possible.
+   */
+  public reserveDailyRun(record: DailyRunRecord): DailyRunReservation {
+    const reserveTransaction = this.database.transaction(
+      (candidate: DailyRunRecord): DailyRunReservation => {
+        const existingRow = this.database
+          .prepare(
+            `
+              SELECT
+                id,
+                user_key,
+                run_key,
+                local_date,
+                status,
+                started_at,
+                completed_at,
+                last_error_message
+              FROM daily_runs
+              WHERE run_key = ?
+            `,
+          )
+          .get(candidate.runKey) as DailyRunRow | undefined;
+
+        if (!existingRow) {
+          this.database
+            .prepare(
+              `
+                INSERT INTO daily_runs (
+                  id,
+                  user_key,
+                  run_key,
+                  local_date,
+                  status,
+                  started_at,
+                  completed_at,
+                  last_error_message
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+              `,
+            )
+            .run(
+              candidate.id,
+              candidate.userKey,
+              candidate.runKey,
+              candidate.localDate,
+              candidate.status,
+              candidate.startedAt,
+              candidate.completedAt ?? null,
+              candidate.lastErrorMessage ?? null,
+            );
+
+          return {
+            status: "reserved",
+            record: candidate,
+          };
+        }
+
+        const existingRecord = mapDailyRunRow(existingRow);
+
+        if (
+          existingRecord.status === "delivery_succeeded" ||
+          existingRecord.status === "completed"
+        ) {
+          return {
+            status: "already_succeeded",
+            record: existingRecord,
+          };
+        }
+
+        if (
+          existingRecord.status === "reserved" ||
+          existingRecord.status === "selection_recorded"
+        ) {
+          return {
+            status: "already_in_progress",
+            record: existingRecord,
+          };
+        }
+
+        const retriedRecord: DailyRunRecord = {
+          ...existingRecord,
+          status: "reserved",
+          startedAt: candidate.startedAt,
+        };
+
+        delete retriedRecord.completedAt;
+        delete retriedRecord.lastErrorMessage;
+
+        this.database
+          .prepare(
+            `
+              UPDATE daily_runs
+              SET status = ?,
+                  started_at = ?,
+                  completed_at = NULL,
+                  last_error_message = NULL
+              WHERE run_key = ?
+            `,
+          )
+          .run(
+            retriedRecord.status,
+            retriedRecord.startedAt,
+            retriedRecord.runKey,
+          );
+
+        return {
+          status: "reserved",
+          record: retriedRecord,
+        };
+      },
+    );
+
+    return reserveTransaction(record);
   }
 
   /**

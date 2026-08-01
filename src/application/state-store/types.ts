@@ -47,6 +47,14 @@ export type DailyRunStatus =
   | "completed";
 
 /**
+ * Result of attempting to reserve a daily run key through the persistence layer.
+ */
+export type DailyRunReservationStatus =
+  | "reserved"
+  | "already_succeeded"
+  | "already_in_progress";
+
+/**
  * One persisted daily run keyed by user and local calendar date.
  */
 export interface DailyRunRecord {
@@ -82,6 +90,20 @@ export interface DailyRunRecord {
    * Optional latest error message retained for debugging.
    */
   lastErrorMessage?: string;
+}
+
+/**
+ * Persistence-layer outcome when trying to reserve a daily run.
+ */
+export interface DailyRunReservation {
+  /**
+   * Indicates whether the run was newly reserved, can be retried, or should be short-circuited.
+   */
+  status: DailyRunReservationStatus;
+  /**
+   * Current persisted daily run record after the reservation attempt.
+   */
+  record: DailyRunRecord;
 }
 
 /**
@@ -329,7 +351,11 @@ export interface StateStore {
    */
   migrate(): void;
   /**
-   * Creates or replaces a daily run record.
+   * Attempts to reserve a daily run key for work, reusing failed records safely when possible.
+   */
+  reserveDailyRun(record: DailyRunRecord): DailyRunReservation;
+  /**
+   * Creates or replaces a daily run record after it has already been reserved.
    */
   saveDailyRun(record: DailyRunRecord): void;
   /**

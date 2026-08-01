@@ -5,6 +5,8 @@ export type {
   ConversationSummaryId,
   ConversationSummaryRecord,
   DailyRunId,
+  DailyRunReservation,
+  DailyRunReservationStatus,
   DailyRunRecord,
   DailyRunStatus,
   MessageDirection,
