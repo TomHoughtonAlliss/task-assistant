@@ -1,5 +1,6 @@
 import type { AppConfig } from "../../../app/config.js";
 import type {
+  InboundMessage,
   MessageChannel,
   MessageDeliveryError,
   MessageDeliveryFailure,
@@ -7,8 +8,12 @@ import type {
   OutboundMessage,
 } from "../../../application/message-channel/index.js";
 import {
+  telegramGetUpdatesResponseSchema,
+  telegramUpdateSchema,
   telegramSendMessageResponseSchema,
+  type TelegramGetUpdatesResponse,
   type TelegramSendMessageFailure,
+  type TelegramUpdate,
 } from "./types.js";
 
 /**
@@ -34,6 +39,34 @@ export interface TelegramMessageChannelConfig {
 }
 
 /**
+ * Options for one Telegram polling read.
+ */
+export interface TelegramPollUpdatesOptions {
+  /**
+   * Optional update cursor; when supplied, only newer updates are returned.
+   */
+  offset?: number;
+  /**
+   * Optional maximum number of updates to request from Telegram.
+   */
+  limit?: number;
+}
+
+/**
+ * Normalized result of one Telegram polling read.
+ */
+export interface TelegramPollUpdatesResult {
+  /**
+   * Successfully normalized inbound text messages.
+   */
+  messages: InboundMessage[];
+  /**
+   * Optional next update cursor to use on the next polling request.
+   */
+  nextOffset?: number;
+}
+
+/**
  * Telegram-backed outbound message-channel adapter.
  */
 export class TelegramMessageChannel implements MessageChannel {
@@ -43,12 +76,12 @@ export class TelegramMessageChannel implements MessageChannel {
   public readonly name = "telegram" as const;
 
   /**
-   * Telegram supports outbound delivery now; inbound modes are added in later tasks.
+   * Telegram supports outbound delivery plus both webhook and polling ingress modes.
    */
   public readonly capabilities = {
     sendMessage: true,
-    receiveViaWebhook: false,
-    receiveViaPolling: false,
+    receiveViaWebhook: true,
+    receiveViaPolling: true,
   } as const;
 
   private readonly botToken: string;
@@ -143,10 +176,56 @@ export class TelegramMessageChannel implements MessageChannel {
   }
 
   /**
+   * Parses one Telegram webhook payload into the normalized inbound-message shape.
+   *
+   * Returns `null` when the payload is valid Telegram data but not a supported plain-text message.
+   * Throws when the payload does not match the expected Telegram update schema at all.
+   */
+  public parseWebhookUpdate(payload: unknown): InboundMessage | null {
+    const update = telegramUpdateSchema.parse(payload);
+    return normalizeTelegramUpdate(update);
+  }
+
+  /**
+   * Polls Telegram for new updates and normalizes any supported inbound text messages.
+   */
+  public async pollUpdates(
+    options: TelegramPollUpdatesOptions = {},
+  ): Promise<TelegramPollUpdatesResult> {
+    const response = await this.fetchImplementation(this.buildGetUpdatesUrl(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(buildGetUpdatesRequestBody(options)),
+    });
+
+    const responseText = await response.text();
+    const parsedResponse = telegramGetUpdatesResponseSchema.safeParse(
+      parseTelegramResponse(responseText),
+    );
+
+    if (!parsedResponse.success) {
+      throw new Error(
+        "Telegram returned a getUpdates response that did not match the expected Bot API schema",
+      );
+    }
+
+    return mapGetUpdatesResponse(parsedResponse.data);
+  }
+
+  /**
    * Builds the Telegram Bot API URL for `sendMessage`.
    */
   private buildSendMessageUrl(): string {
     return `${this.apiBaseUrl}/bot${this.botToken}/sendMessage`;
+  }
+
+  /**
+   * Builds the Telegram Bot API URL for `getUpdates`.
+   */
+  private buildGetUpdatesUrl(): string {
+    return `${this.apiBaseUrl}/bot${this.botToken}/getUpdates`;
   }
 
   /**
@@ -186,6 +265,39 @@ export function createTelegramMessageChannel(
  */
 function parseTelegramResponse(responseText: string): unknown {
   return JSON.parse(responseText);
+}
+
+/**
+ * Maps one Telegram `getUpdates` response into normalized inbound messages and the next offset.
+ */
+function mapGetUpdatesResponse(
+  response: TelegramGetUpdatesResponse,
+): TelegramPollUpdatesResult {
+  if (!response.ok) {
+    throw new Error(response.description);
+  }
+
+  const messages: InboundMessage[] = [];
+  let nextOffset: number | undefined;
+
+  for (const update of response.result) {
+    const normalizedMessage = normalizeTelegramUpdate(update);
+    if (normalizedMessage) {
+      messages.push(normalizedMessage);
+    }
+
+    nextOffset = update.update_id + 1;
+  }
+
+  const result: TelegramPollUpdatesResult = {
+    messages,
+  };
+
+  if (nextOffset !== undefined) {
+    result.nextOffset = nextOffset;
+  }
+
+  return result;
 }
 
 /**
@@ -277,6 +389,52 @@ function collectTelegramFailureDetails(
   }
 
   return details;
+}
+
+/**
+ * Normalizes one Telegram update into the shared inbound-message shape.
+ *
+ * Returns `null` for update types or message shapes the application does not currently support.
+ */
+function normalizeTelegramUpdate(update: TelegramUpdate): InboundMessage | null {
+  const message = update.message ?? update.edited_message;
+  if (!message || !message.text || !message.from) {
+    return null;
+  }
+
+  const normalizedMessage: InboundMessage = {
+    channel: "telegram",
+    conversationId: String(message.chat.id),
+    messageId: String(message.message_id),
+    senderId: String(message.from.id),
+    text: message.text,
+    occurredAt: new Date(message.date * 1000).toISOString(),
+  };
+
+  if (message.reply_to_message) {
+    normalizedMessage.sourceMessageId = String(message.reply_to_message.message_id);
+  }
+
+  return normalizedMessage;
+}
+
+/**
+ * Builds one Telegram `getUpdates` request body.
+ */
+function buildGetUpdatesRequestBody(
+  options: TelegramPollUpdatesOptions,
+): Record<string, number> {
+  const payload: Record<string, number> = {};
+
+  if (options.offset !== undefined) {
+    payload.offset = options.offset;
+  }
+
+  if (options.limit !== undefined) {
+    payload.limit = options.limit;
+  }
+
+  return payload;
 }
 
 /**

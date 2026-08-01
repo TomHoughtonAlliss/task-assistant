@@ -36,7 +36,7 @@ const configSchema = z
     MODEL_PROVIDER: modelProviderSchema.default("openai"),
     STATE_DIR: stateDirectorySchema.default("./data"),
     DISABLE_DAILY_RUN_GUARD: disableDailyRunGuardSchema.default(false),
-    TELEGRAM_RECEIVER_MODE: telegramReceiverModeSchema.default("polling"),
+    TELEGRAM_RECEIVER_MODE: telegramReceiverModeSchema.default("webhook"),
     TELEGRAM_BOT_TOKEN: telegramBotTokenSchema.optional(),
     TELEGRAM_CHAT_ID: telegramChatIdSchema.optional(),
     TELEGRAM_API_BASE_URL: telegramApiBaseUrlSchema.default("https://api.telegram.org"),

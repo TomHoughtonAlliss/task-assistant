@@ -17,6 +17,8 @@ The application should be organised into four layers:
 - `infrastructure`: concrete adapters for SQLite state storage, Todoist, Telegram, and Vercel AI SDK;
 - `entrypoints`: HTTP routes, webhook handlers, polling loops, and process startup.
 
+Telegram inbound delivery should treat webhooks as the primary production path, with polling kept only as a fallback or local-development option.
+
 ## Key boundaries
 
 The main replaceable interfaces are:
