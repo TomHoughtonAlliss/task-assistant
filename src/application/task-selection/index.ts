@@ -5,6 +5,16 @@ export type {
 } from "./candidate-filter.js";
 export { filterCandidateTasks } from "./candidate-filter.js";
 export type {
+  FinalTaskSelectionError,
+  FinalTaskSelectionErrorCode,
+  FinalTaskSelectionResult,
+  SelectFinalTaskInput,
+} from "./final-selection.js";
+export {
+  finalTaskSelectionErrorCodeSchema,
+  selectFinalTask,
+} from "./final-selection.js";
+export type {
   AgeSignal,
   ComputeRankingSignalsInput,
   DependencyHintSignal,
