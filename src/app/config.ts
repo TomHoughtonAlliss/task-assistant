@@ -12,7 +12,16 @@ const jitterMinutesSchema = z.number().int().min(0).max(60);
 const stateDirectorySchema = z.string().min(1);
 const todoistApiTokenSchema = z.string().min(1);
 const todoistApiBaseUrlSchema = z.url();
-const disableDailyRunGuardSchema = z.coerce.boolean();
+const booleanStringSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.enum(["true", "false"]))
+  .transform((value) => value === "true");
+const disableDailyRunGuardSchema = z.union([
+  z.boolean(),
+  booleanStringSchema,
+]);
 const telegramBotTokenSchema = z.string().min(1);
 const telegramChatIdSchema = z.string().min(1);
 const telegramApiBaseUrlSchema = z.url();
