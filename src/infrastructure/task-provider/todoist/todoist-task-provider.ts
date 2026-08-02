@@ -616,7 +616,7 @@ export class TodoistTaskProvider implements TaskProvider {
    * Builds a fully qualified Todoist API URL.
    */
   private buildUrl(path: string): string {
-    return new URL(path, `${this.apiBaseUrl}/`).toString();
+    return this.apiBaseUrl + path;
   }
 
   /**
