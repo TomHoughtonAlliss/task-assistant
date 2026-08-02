@@ -284,6 +284,68 @@ export class BetterSqliteStateStore implements StateStore {
   }
 
   /**
+   * Returns selection history for a task inside one inclusive local-date window, newest first.
+   */
+  public listSelectionHistoryForTaskInDateWindow(
+    taskId: string,
+    dateFrom: string,
+    dateTo: string,
+  ): SelectionHistoryEntry[] {
+    const rows = this.database
+      .prepare(
+        `
+          SELECT
+            selections.id,
+            selections.run_id,
+            daily_runs.local_date,
+            selections.main_task_id,
+            selections.additional_task_ids,
+            selections.reason,
+            selections.created_at
+          FROM selections
+          INNER JOIN daily_runs ON daily_runs.id = selections.run_id
+          WHERE daily_runs.local_date >= ?
+            AND daily_runs.local_date <= ?
+            AND (
+              selections.main_task_id = ?
+              OR EXISTS (
+                SELECT 1
+                FROM json_each(selections.additional_task_ids)
+                WHERE json_each.value = ?
+              )
+            )
+          ORDER BY selections.created_at DESC
+        `,
+      )
+      .all(dateFrom, dateTo, taskId, taskId) as SelectionRecordRow[];
+
+    return rows.map(mapSelectionRecordRowToHistoryEntry);
+  }
+
+  /**
+   * Loads one selection record by the associated daily run identifier.
+   */
+  public getSelectionByRunId(runId: string): SelectionRecord | null {
+    const row = this.database
+      .prepare(
+        `
+          SELECT
+            id,
+            run_id,
+            main_task_id,
+            additional_task_ids,
+            reason,
+            created_at
+          FROM selections
+          WHERE run_id = ?
+        `,
+      )
+      .get(runId) as SelectionRecordRow | undefined;
+
+    return row ? mapSelectionRecordRow(row) : null;
+  }
+
+  /**
    * Saves one local snooze record.
    */
   public saveSnooze(record: SnoozeRecord): void {
@@ -424,6 +486,35 @@ export class BetterSqliteStateStore implements StateStore {
         `,
       )
       .all(conversationId, limit) as MessageRow[];
+
+    return rows.map(mapMessageRow);
+  }
+
+  /**
+   * Returns message records linked to one daily run, newest first.
+   */
+  public listMessagesForRun(runId: string): MessageRecord[] {
+    const rows = this.database
+      .prepare(
+        `
+          SELECT
+            id,
+            direction,
+            channel,
+            conversation_id,
+            message_id,
+            source_message_id,
+            run_id,
+            body,
+            status,
+            retry_count,
+            occurred_at
+          FROM messages
+          WHERE run_id = ?
+          ORDER BY occurred_at DESC
+        `,
+      )
+      .all(runId) as MessageRow[];
 
     return rows.map(mapMessageRow);
   }
@@ -611,6 +702,19 @@ interface SelectionHistoryRow {
 }
 
 /**
+ * Raw row shape returned when reading selection records.
+ */
+interface SelectionRecordRow {
+  id: string;
+  run_id: string;
+  main_task_id: string;
+  additional_task_ids: string;
+  reason: string;
+  created_at: string;
+  local_date?: string;
+}
+
+/**
  * Raw row shape returned when reading snooze records.
  */
 interface SnoozeRow {
@@ -708,6 +812,44 @@ function mapSelectionHistoryRow(row: SelectionHistoryRow): SelectionHistoryEntry
     runId: row.run_id,
     localDate: row.local_date,
     selection,
+    createdAt: row.created_at,
+  };
+}
+
+/**
+ * Maps one selection row into the application-facing persisted selection record.
+ */
+function mapSelectionRecordRow(row: SelectionRecordRow): SelectionRecord {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    selection: taskSelectionSchema.parse({
+      mainTaskId: row.main_task_id,
+      additionalTaskIds: JSON.parse(row.additional_task_ids) as string[],
+      reason: row.reason,
+    }),
+    createdAt: row.created_at,
+  };
+}
+
+/**
+ * Maps one selection row that also carries `local_date` into the selection-history read model.
+ */
+function mapSelectionRecordRowToHistoryEntry(
+  row: SelectionRecordRow,
+): SelectionHistoryEntry {
+  if (!row.local_date) {
+    throw new Error("Expected local_date when mapping selection history row");
+  }
+
+  return {
+    runId: row.run_id,
+    localDate: row.local_date,
+    selection: taskSelectionSchema.parse({
+      mainTaskId: row.main_task_id,
+      additionalTaskIds: JSON.parse(row.additional_task_ids) as string[],
+      reason: row.reason,
+    }),
     createdAt: row.created_at,
   };
 }

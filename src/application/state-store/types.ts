@@ -371,6 +371,18 @@ export interface StateStore {
    */
   listSelectionHistoryForTask(taskId: TaskId, limit: number): SelectionHistoryEntry[];
   /**
+   * Returns selection history for a task inside one inclusive local-date window, newest first.
+   */
+  listSelectionHistoryForTaskInDateWindow(
+    taskId: TaskId,
+    dateFrom: string,
+    dateTo: string,
+  ): SelectionHistoryEntry[];
+  /**
+   * Loads one selection record by the associated daily run identifier.
+   */
+  getSelectionByRunId(runId: DailyRunId): SelectionRecord | null;
+  /**
    * Saves one local snooze record.
    */
   saveSnooze(record: SnoozeRecord): void;
@@ -389,6 +401,10 @@ export interface StateStore {
     conversationId: ConversationId,
     limit: number,
   ): MessageRecord[];
+  /**
+   * Returns message records linked to one daily run, newest first.
+   */
+  listMessagesForRun(runId: DailyRunId): MessageRecord[];
   /**
    * Saves one conversation summary record.
    */
