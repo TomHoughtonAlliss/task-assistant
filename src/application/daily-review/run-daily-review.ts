@@ -19,20 +19,39 @@ export class DailyReviewRunner {
 
   /**
    * Runs the end-to-end daily-review flow for one already-acquired daily run.
-   *
-   * Planned steps:
-   * 1. load tasks and supporting state
-   * 2. filter and rank candidates
-   * 3. ask the model to choose the bounded selection
-   * 4. ask the model to generate the initial daily message
-   * 5. deliver the message through the message channel
-   * 6. persist the run, selection, and delivery outcome
    */
-  public async run(_input: RunDailyReviewInput): Promise<DailyReviewResult> {
-    void this.dependencies;
+  public async run(input: RunDailyReviewInput): Promise<DailyReviewResult> {
+    const now = input.triggeredAt;
+    const taskResult = await this.dependencies.taskProvider.listIncompleteTasks();
+    if (!taskResult.ok) {
+      throw new Error(`[${now}] ${taskResult.error.message}`);
+    }
+    const tasks = taskResult.value;
 
-    throw new Error(
-      "DailyReviewRunner.run is scaffolded but not implemented yet",
-    );
+    const messageResult = await this.dependencies.modelProvider.generateDailyMessage({
+      tasks,
+      localDate: input.localDate,
+    });
+    if (!messageResult.ok) {
+      if ("refusal" in messageResult) {
+        throw new Error(`[${now}] ${messageResult.refusal.reason}`);
+      } else {
+        throw new Error(`[${now}] ${messageResult.error.message}`);
+      }
+    }
+    const message = messageResult.value.body;
+
+    const result = await this.dependencies.messageChannel.sendMessage({
+      conversationId: input.run.userKey,
+      body: message,
+    });
+
+    if (!result.ok) {
+      throw new Error(`[${now}] ${result.error.message}`);
+    }
+
+    return {
+      status: "completed",
+    };
   }
 }
