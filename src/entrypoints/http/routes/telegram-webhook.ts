@@ -28,9 +28,20 @@ export function registerTelegramWebhookRoutes(server: FastifyInstance): void {
         "Normalized inbound Telegram message",
       );
 
+      if (!server.inboundMessageHandler) {
+        return reply.code(202).send({
+          accepted: true,
+          message: inboundMessage,
+          reason: "no_inbound_handler",
+        });
+      }
+
+      const result = await server.inboundMessageHandler.handle({
+        inboundMessage,
+      });
+
       return reply.code(202).send({
-        accepted: true,
-        message: inboundMessage,
+        ...result,
       });
     } catch (error: unknown) {
       request.log.warn(

@@ -1,6 +1,7 @@
 import { DailyReviewRunner } from "../application/daily-review/index.js";
 import { DailyRunGuard } from "../application/daily-run-guard/index.js";
 import { DailyReviewPersistence } from "../application/daily-review-persistence/index.js";
+import { InboundMessageHandler } from "../application/reply-handling/index.js";
 import type { MessageChannel } from "../application/message-channel/index.js";
 import type { ModelProvider } from "../application/model-provider/index.js";
 import { DailyScheduler, type Scheduler } from "../application/scheduler/index.js";
@@ -25,6 +26,7 @@ export interface AppRuntime {
   dailyRunGuard: DailyRunGuard;
   dailyReviewPersistence: DailyReviewPersistence;
   dailyReviewRunner: DailyReviewRunner;
+  inboundMessageHandler: InboundMessageHandler;
   scheduler: Scheduler;
 }
 
@@ -62,6 +64,12 @@ export function buildAppRuntime(config: AppConfig): AppRuntime {
     runGuard: dailyRunGuard,
     persistence: dailyReviewPersistence,
   });
+  const inboundMessageHandler = new InboundMessageHandler({
+    modelProvider: aiProvider,
+    messageChannel: messageProvider,
+    taskProvider,
+    stateStore,
+  });
   const scheduler = new DailyScheduler(
     dailyRunGuard,
     async (input) => {
@@ -76,7 +84,9 @@ export function buildAppRuntime(config: AppConfig): AppRuntime {
   );
 
   return {
-    server: createHttpServer(config),
+    server: createHttpServer(config, {
+      inboundMessageHandler,
+    }),
     aiProvider,
     messageProvider,
     taskProvider,
@@ -84,6 +94,7 @@ export function buildAppRuntime(config: AppConfig): AppRuntime {
     dailyRunGuard,
     dailyReviewPersistence,
     dailyReviewRunner,
+    inboundMessageHandler,
     scheduler,
   };
 }
