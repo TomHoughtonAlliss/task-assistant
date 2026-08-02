@@ -12,7 +12,7 @@ export function registerTelegramWebhookRoutes(server: FastifyInstance): void {
       const inboundMessage = telegramChannel.parseWebhookUpdate(request.body);
 
       if (!inboundMessage) {
-        return reply.code(202).send({
+        return reply.code(400).send({
           accepted: false,
           reason: "unsupported_update",
         });
@@ -29,7 +29,7 @@ export function registerTelegramWebhookRoutes(server: FastifyInstance): void {
       );
 
       if (!server.inboundMessageHandler) {
-        return reply.code(202).send({
+        return reply.code(404).send({
           accepted: true,
           message: inboundMessage,
           reason: "no_inbound_handler",
@@ -40,7 +40,7 @@ export function registerTelegramWebhookRoutes(server: FastifyInstance): void {
         inboundMessage,
       });
 
-      return reply.code(202).send({
+      return reply.code(200).send({
         ...result,
       });
     } catch (error: unknown) {
@@ -51,7 +51,7 @@ export function registerTelegramWebhookRoutes(server: FastifyInstance): void {
         "Ignored malformed Telegram webhook payload",
       );
 
-      return reply.code(202).send({
+      return reply.code(400).send({
         accepted: false,
         reason: "malformed_payload",
       });
