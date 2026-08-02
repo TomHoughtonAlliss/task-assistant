@@ -2,10 +2,6 @@ import type { DailyReviewResult, DailyReviewDependencies, RunDailyReviewInput } 
 
 /**
  * Orchestrates one complete daily-review run after the scheduler has already acquired the daily run.
- *
- * This is intentionally scaffold-level for now: it centralizes the interaction boundary between
- * task loading, filtering, ranking, model selection, message generation, delivery, and persistence,
- * without yet hard-wiring the unfinished business steps into one opaque method body.
  */
 export class DailyReviewRunner {
   private readonly dependencies: DailyReviewDependencies;
