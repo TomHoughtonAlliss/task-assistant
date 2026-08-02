@@ -1,11 +1,17 @@
 services:
-  app:
+  task_assistant:
+    container_name: task_assistant
+    networks:
+      - npm-network
     build:
       context: .
     ports:
-      - "3000:3000"
+      - "3001:3000"
     env_file:
       - .env
     volumes:
       - ./data:/app/data
 
+networks:
+  npm-network:
+    external: true

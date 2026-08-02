@@ -25,10 +25,10 @@ ENV NODE_ENV=production
 COPY --from=build /app/dist ./dist
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml ./
+COPY drizzle ./drizzle
 
 RUN mkdir -p /app/data
 
 EXPOSE 3000
 
 CMD ["node", "dist/entrypoints/http/server.js"]
-
