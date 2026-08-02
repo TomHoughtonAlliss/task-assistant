@@ -28,6 +28,7 @@ const telegramApiBaseUrlSchema = z.url();
 const openAiApiKeySchema = z.string().min(1);
 const openAiBaseUrlSchema = z.url();
 const openAiModelSchema = z.string().min(1);
+const toneOfVoicePromptSchema = z.string().min(1);
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -54,6 +55,7 @@ const configSchema = z
     OPENAI_API_KEY: openAiApiKeySchema.optional(),
     OPENAI_BASE_URL: openAiBaseUrlSchema.default("https://api.openai.com/v1"),
     OPENAI_MODEL: openAiModelSchema.default("gpt-5.2"),
+    TONE_OF_VOICE_PROMPT: toneOfVoicePromptSchema.default("Be nice!"),
   })
   .superRefine((parsed, context) => {
     if (parsed.TASK_PROVIDER === "todoist" && !parsed.TODOIST_API_TOKEN) {
@@ -118,6 +120,7 @@ const configSchema = z
         apiKey: openAiApiKeySchema.parse(parsed.OPENAI_API_KEY),
         baseUrl: parsed.OPENAI_BASE_URL,
         model: parsed.OPENAI_MODEL,
+        toneOfVoicePrompt: parsed.TONE_OF_VOICE_PROMPT,
       },
     },
     state: {

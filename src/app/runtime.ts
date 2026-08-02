@@ -39,6 +39,7 @@ export function buildAppRuntime(config: AppConfig): AppRuntime {
     apiKey: config.integrations.openai.apiKey,
     baseUrl: config.integrations.openai.baseUrl,
     model: config.integrations.openai.model,
+    toneOfVoicePrompt: config.integrations.openai.toneOfVoicePrompt,
   });
   const messageProvider = new TelegramMessageChannel({
     apiBaseUrl: config.integrations.telegram.apiBaseUrl,

@@ -37,6 +37,10 @@ export interface OpenAiModelProviderConfig {
    * Language-model identifier used for structured generation calls.
    */
   model: string;
+  /**
+   * Shared tone-of-voice instruction appended to all model-facing system prompts.
+   */
+  toneOfVoicePrompt: string;
 }
 
 /**
@@ -50,6 +54,7 @@ export class VercelAiSdkOpenAiModelProvider implements ModelProvider {
 
   private readonly modelFactory;
   private readonly modelId: string;
+  private readonly toneOfVoicePrompt: string;
 
   /**
    * Creates an OpenAI-backed Vercel AI SDK adapter for structured selection and reply generation.
@@ -60,6 +65,7 @@ export class VercelAiSdkOpenAiModelProvider implements ModelProvider {
       baseURL: config.baseUrl,
     });
     this.modelId = config.model;
+    this.toneOfVoicePrompt = config.toneOfVoicePrompt;
   }
 
   /**
@@ -75,7 +81,7 @@ export class VercelAiSdkOpenAiModelProvider implements ModelProvider {
           schema: modelProviderStructuredOutputs.taskSelection,
           name: "daily_task_selection",
         }),
-        system: buildDailySelectionSystemPrompt(),
+        system: buildDailySelectionSystemPrompt(this.toneOfVoicePrompt),
         prompt: buildDailySelectionPrompt(request),
       });
 
@@ -101,7 +107,7 @@ export class VercelAiSdkOpenAiModelProvider implements ModelProvider {
           schema: modelProviderStructuredOutputs.dailyMessage,
           name: "daily_message",
         }),
-        system: buildDailyMessageSystemPrompt(),
+        system: buildDailyMessageSystemPrompt(this.toneOfVoicePrompt),
         prompt: buildDailyMessagePrompt(request),
       });
 
@@ -127,7 +133,7 @@ export class VercelAiSdkOpenAiModelProvider implements ModelProvider {
           schema: modelProviderStructuredOutputs.conversationReply,
           name: "task_conversation_reply",
         }),
-        system: buildConversationReplySystemPrompt(),
+        system: buildConversationReplySystemPrompt(this.toneOfVoicePrompt),
         prompt: buildConversationReplyPrompt(request),
       });
 
@@ -151,6 +157,7 @@ export function createOpenAiModelProvider(
     apiKey: config.integrations.openai.apiKey,
     baseUrl: config.integrations.openai.baseUrl,
     model: config.integrations.openai.model,
+    toneOfVoicePrompt: config.integrations.openai.toneOfVoicePrompt,
   });
 }
 
