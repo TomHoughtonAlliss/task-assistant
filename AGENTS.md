@@ -1,5 +1,21 @@
 # AGENTS.md
 
+## Workspace packages
+
+Dependency direction must stay acyclic:
+
+```text
+@task-assistant/domain
+        ▲
+@task-assistant/application
+        ▲
+@task-assistant/infrastructure
+        ▲
+@task-assistant/http
+```
+
+Import across packages with workspace package names (for example `@task-assistant/domain`), not `../` paths that cross package roots. Only `@task-assistant/http` may import infrastructure adapters.
+
 ## Conventions
 
   - All functions, models, types, and other complex symbols must have an attached docstring.

@@ -10,12 +10,14 @@ Task Assistant is a single-service TypeScript application that runs one schedule
 
 ## High-level structure
 
-The application should be organised into four layers:
+The application is organised as a pnpm workspace with four packages:
 
-- `domain`: core task, selection, message, and action models plus invariants;
-- `application`: use cases such as daily review, reply handling, action validation, and scheduler orchestration;
-- `infrastructure`: concrete adapters for SQLite state storage, Todoist, Telegram, and Vercel AI SDK;
-- `entrypoints`: HTTP routes, webhook handlers, polling loops, and process startup.
+- `@task-assistant/domain`: core task, selection, message, and action models plus invariants;
+- `@task-assistant/application`: use cases such as daily review, reply handling, action validation, and scheduler orchestration;
+- `@task-assistant/infrastructure`: concrete adapters for SQLite state storage, Todoist, Telegram, and Vercel AI SDK;
+- `@task-assistant/http`: composition root, config, HTTP routes, webhook handlers, and process startup.
+
+Cross-package imports use package names (`@task-assistant/...`), not relative paths across package boundaries.
 
 Telegram inbound delivery should treat webhooks as the primary production path, with polling kept only as a fallback or local-development option.
 
