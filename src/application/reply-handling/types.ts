@@ -5,6 +5,7 @@ import type { ModelProvider, ModelProviderError, ModelProviderRefusal } from "..
 import type {
   ConversationSummaryRecord,
   MessageRecord,
+  SelectionRecord,
   StateStore,
 } from "../state-store/index.js";
 import type { TaskProvider } from "../task-provider/index.js";
@@ -61,6 +62,10 @@ export interface ReplyHandlingContext {
    * Small task set relevant to the current turn.
    */
   relevantTasks: Task[];
+  /**
+   * Optional daily selection linked to the outbound message being replied to.
+   */
+  linkedSelection: SelectionRecord | null;
 }
 
 /**
@@ -127,6 +132,7 @@ export interface ReplyHandlingPlan {
 export type ReplyHandlingErrorCode =
   | "model_refusal"
   | "model_provider_failed"
+  | "message_delivery_failed"
   | "unsupported_message"
   | "not_implemented";
 
