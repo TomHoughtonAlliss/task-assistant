@@ -35,9 +35,12 @@ export async function bootstrap(): Promise<void> {
   loadLocalEnvironment();
   const config = loadConfig(process.env);
   const runtime = buildAppRuntime(config);
+  runtime.stateStore.migrate();
 
   await runtime.server.listen({
     host: config.app.host,
     port: config.app.port,
   });
+
+  await runtime.scheduler.start();
 }
