@@ -1,0 +1,48 @@
+{
+  "name": "@task-assistant/infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./message-channel/telegram": {
+      "types": "./dist/message-channel/telegram/index.d.ts",
+      "default": "./dist/message-channel/telegram/index.js"
+    },
+    "./model-provider/openai": {
+      "types": "./dist/model-provider/openai/index.d.ts",
+      "default": "./dist/model-provider/openai/index.js"
+    },
+    "./state-store/sqlite": {
+      "types": "./dist/state-store/sqlite/index.d.ts",
+      "default": "./dist/state-store/sqlite/index.js"
+    },
+    "./task-provider/todoist": {
+      "types": "./dist/task-provider/todoist/index.d.ts",
+      "default": "./dist/task-provider/todoist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "drizzle"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "db:generate": "drizzle-kit generate",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "4.0.27",
+    "@task-assistant/application": "workspace:*",
+    "@task-assistant/domain": "workspace:*",
+    "ai": "7.0.40",
+    "better-sqlite3": "12.4.1",
+    "drizzle-orm": "0.44.5",
+    "zod": "4.1.11"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "22.18.6",
+    "drizzle-kit": "0.31.6",
+    "typescript": "7.0.2"
+  }
+}

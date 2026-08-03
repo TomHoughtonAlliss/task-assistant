@@ -1,0 +1,63 @@
+{
+  "name": "@task-assistant/application",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./daily-review": {
+      "types": "./dist/daily-review/index.d.ts",
+      "default": "./dist/daily-review/index.js"
+    },
+    "./daily-review-persistence": {
+      "types": "./dist/daily-review-persistence/index.d.ts",
+      "default": "./dist/daily-review-persistence/index.js"
+    },
+    "./daily-run-guard": {
+      "types": "./dist/daily-run-guard/index.d.ts",
+      "default": "./dist/daily-run-guard/index.js"
+    },
+    "./message-channel": {
+      "types": "./dist/message-channel/index.d.ts",
+      "default": "./dist/message-channel/index.js"
+    },
+    "./model-provider": {
+      "types": "./dist/model-provider/index.d.ts",
+      "default": "./dist/model-provider/index.js"
+    },
+    "./reply-handling": {
+      "types": "./dist/reply-handling/index.d.ts",
+      "default": "./dist/reply-handling/index.js"
+    },
+    "./scheduler": {
+      "types": "./dist/scheduler/index.d.ts",
+      "default": "./dist/scheduler/index.js"
+    },
+    "./state-store": {
+      "types": "./dist/state-store/index.d.ts",
+      "default": "./dist/state-store/index.js"
+    },
+    "./task-provider": {
+      "types": "./dist/task-provider/index.d.ts",
+      "default": "./dist/task-provider/index.js"
+    },
+    "./task-selection": {
+      "types": "./dist/task-selection/index.d.ts",
+      "default": "./dist/task-selection/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@task-assistant/domain": "workspace:*",
+    "zod": "4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "typescript": "7.0.2"
+  }
+}
