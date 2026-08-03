@@ -1,5 +1,6 @@
 import { ConversationContextLoader } from "./conversation-context-loader.js";
 import { ConversationContextTracker } from "./conversation-context-tracker.js";
+import { ResetConversationHandler } from "./reset-conversation-handler.js";
 import type { OutboundMessage } from "../message-channel/index.js";
 import type {
   HandleInboundMessageInput,
@@ -18,6 +19,7 @@ export class InboundMessageHandler {
   private readonly dependencies: ReplyHandlingDependencies;
   private readonly contextLoader: ConversationContextLoader;
   private readonly contextTracker: ConversationContextTracker;
+  private readonly resetConversationHandler: ResetConversationHandler;
 
   /**
    * Creates the inbound reply-handling use case around the shared application boundaries.
@@ -31,6 +33,12 @@ export class InboundMessageHandler {
     this.contextTracker = new ConversationContextTracker({
       stateStore: dependencies.stateStore,
     });
+    this.resetConversationHandler = new ResetConversationHandler({
+      stateStore: dependencies.stateStore,
+      messageChannel: dependencies.messageChannel,
+      dailyReviewRunner: dependencies.dailyReviewRunner,
+      timezone: dependencies.timezone,
+    });
   }
 
   /**
@@ -39,9 +47,53 @@ export class InboundMessageHandler {
   public async handle(
     input: HandleInboundMessageInput,
   ): Promise<HandleInboundMessageResult> {
+    if (isResetCommand(input.inboundMessage.text)) {
+      try {
+        await this.resetConversationHandler.handle(input.inboundMessage);
+      } catch (error: unknown) {
+        return {
+          accepted: false,
+          error: {
+            code: "reset_failed",
+            message: error instanceof Error ? error.message : String(error),
+          },
+        };
+      }
+
+      return {
+        accepted: true,
+        plan: {
+          context: {
+            tasks: [],
+            conversationSummary: null,
+            currentTask: null,
+            recentMessages: [],
+            relevantTasks: [],
+            linkedSelection: null,
+          },
+          modelRequest: {
+            conversationId: input.inboundMessage.conversationId,
+            tasks: [],
+            userMessage: input.inboundMessage.text,
+            relevantTasks: [],
+          },
+          reply: {
+            message: "Conversation reset.",
+            proposedActions: [],
+            currentTaskId: null,
+          },
+          sendPlan: {
+            outboundMessage: {
+              conversationId: input.inboundMessage.conversationId,
+              body: "Conversation reset.",
+            },
+          },
+        },
+      };
+    }
+
     const context = await this.contextLoader.load(input.inboundMessage);
     const modelRequest = this.buildModelRequest(input, context);
-    console.dir(modelRequest);
     const modelResult = await this.dependencies.modelProvider.generateConversationReply(
       modelRequest,
     );
@@ -124,6 +176,7 @@ export class InboundMessageHandler {
   ): ConversationReplyRequest & ReplyHandlingModelRequest {
     const request: ConversationReplyRequest & ReplyHandlingModelRequest = {
       conversationId: input.inboundMessage.conversationId,
+      tasks: context.tasks,
       userMessage: input.inboundMessage.text,
       relevantTasks: context.relevantTasks,
     };
@@ -138,4 +191,11 @@ export class InboundMessageHandler {
 
     return request;
   }
+}
+
+/**
+ * Returns whether the inbound message is the exact reset command.
+ */
+function isResetCommand(text: string): boolean {
+  return text.trim() === "/reset";
 }

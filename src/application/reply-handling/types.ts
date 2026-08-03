@@ -1,4 +1,5 @@
 import type { ConversationReply, Task } from "../../domain/index.js";
+import type { DailyReviewRunner } from "../daily-review/index.js";
 import type { MessageChannel } from "../message-channel/index.js";
 import type { InboundMessage, OutboundMessage } from "../message-channel/index.js";
 import type { ModelProvider, ModelProviderError, ModelProviderRefusal } from "../model-provider/index.js";
@@ -30,6 +31,14 @@ export interface ReplyHandlingDependencies {
    * Persistence boundary used to load and save message/context state.
    */
   stateStore: StateStore;
+  /**
+   * Daily-review orchestration used by explicit reset commands.
+   */
+  dailyReviewRunner: DailyReviewRunner;
+  /**
+   * IANA timezone used when deriving a local date for manual reset-triggered runs.
+   */
+  timezone: string;
 }
 
 /**
@@ -46,6 +55,10 @@ export interface HandleInboundMessageInput {
  * Loaded bounded context used to ground one conversational turn.
  */
 export interface ReplyHandlingContext {
+  /**
+   * Full current incomplete task list used to ground the model for this turn.
+   */
+  tasks: Task[];
   /**
    * Persisted conversation summary, when one already exists.
    */
@@ -76,6 +89,10 @@ export interface ReplyHandlingModelRequest {
    * Conversation identifier used for persistence and model context.
    */
   conversationId: string;
+  /**
+   * Full current incomplete task list supplied as model grounding for this turn.
+   */
+  tasks: Task[];
   /**
    * User message to answer.
    */
@@ -133,6 +150,7 @@ export type ReplyHandlingErrorCode =
   | "model_refusal"
   | "model_provider_failed"
   | "message_delivery_failed"
+  | "reset_failed"
   | "unsupported_message"
   | "not_implemented";
 

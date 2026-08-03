@@ -70,6 +70,8 @@ export function buildAppRuntime(config: AppConfig): AppRuntime {
     messageChannel: messageProvider,
     taskProvider,
     stateStore,
+    dailyReviewRunner,
+    timezone: config.user.timezone,
   });
   const scheduler = new DailyScheduler(
     dailyRunGuard,

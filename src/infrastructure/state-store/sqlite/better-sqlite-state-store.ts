@@ -583,6 +583,20 @@ export class BetterSqliteStateStore implements StateStore {
   }
 
   /**
+   * Clears the active bounded conversation summary for one conversation.
+   */
+  public clearConversationSummary(conversationId: string): void {
+    this.database
+      .prepare(
+        `
+          DELETE FROM conversation_summaries
+          WHERE conversation_id = ?
+        `,
+      )
+      .run(conversationId);
+  }
+
+  /**
    * Saves one action record used for confirmation and dedupe tracking.
    */
   public saveActionRecord(record: ActionRecord): void {

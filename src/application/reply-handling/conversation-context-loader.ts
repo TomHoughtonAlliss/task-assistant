@@ -42,6 +42,7 @@ export class ConversationContextLoader {
    * Loads recent persisted context and infers the current task when possible.
    */
   public async load(inboundMessage: InboundMessage): Promise<ReplyHandlingContext> {
+    const tasks = await this.loadCurrentTasks();
     const conversationSummary = this.dependencies.stateStore.getConversationSummary(
       inboundMessage.conversationId,
     );
@@ -52,9 +53,10 @@ export class ConversationContextLoader {
     const linkedSelection = this.loadLinkedSelection(inboundMessage, recentMessages);
     const currentTaskId = conversationSummary?.currentTaskId
       ?? linkedSelection?.selection.mainTaskId;
-    const relevantTasks = await this.loadRelevantTasks(currentTaskId, linkedSelection);
+    const relevantTasks = selectRelevantTasks(tasks, currentTaskId, linkedSelection);
 
     return {
+      tasks,
       conversationSummary,
       currentTask: findCurrentTask(relevantTasks, currentTaskId),
       recentMessages,
@@ -88,29 +90,15 @@ export class ConversationContextLoader {
   }
 
   /**
-   * Loads the small set of tasks relevant to the current turn.
+   * Loads the full current incomplete task list for model grounding.
    */
-  private async loadRelevantTasks(
-    currentTaskId: string | undefined,
-    linkedSelection: SelectionRecord | null,
-  ): Promise<Task[]> {
-    const orderedTaskIds = collectRelevantTaskIds(currentTaskId, linkedSelection);
-    if (orderedTaskIds.length === 0) {
+  private async loadCurrentTasks(): Promise<Task[]> {
+    const taskResult = await this.dependencies.taskProvider.listIncompleteTasks();
+    if (!taskResult.ok) {
       return [];
     }
 
-    const taskResults = await Promise.all(
-      orderedTaskIds.map(async (taskId) => {
-        const taskResult = await this.dependencies.taskProvider.getTaskById(taskId);
-        if (!taskResult.ok || !taskResult.value) {
-          return null;
-        }
-
-        return taskResult.value;
-      }),
-    );
-
-    return taskResults.filter((task): task is Task => task !== null);
+    return taskResult.value;
   }
 }
 
@@ -135,6 +123,25 @@ function collectRelevantTaskIds(
   }
 
   return [...taskIds];
+}
+
+/**
+ * Selects the small relevant-task subset from the full current task list.
+ */
+function selectRelevantTasks(
+  tasks: Task[],
+  currentTaskId: string | undefined,
+  linkedSelection: SelectionRecord | null,
+): Task[] {
+  const relevantTaskIds = new Set(
+    collectRelevantTaskIds(currentTaskId, linkedSelection),
+  );
+
+  if (relevantTaskIds.size === 0) {
+    return [];
+  }
+
+  return tasks.filter((task) => relevantTaskIds.has(task.id));
 }
 
 /**

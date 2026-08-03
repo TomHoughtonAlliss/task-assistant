@@ -150,6 +150,10 @@ export interface ConversationReplyRequest {
    */
   conversationId: string;
   /**
+   * Full current incomplete task list supplied as model grounding for this turn.
+   */
+  tasks: Task[];
+  /**
    * Optional current task under discussion.
    */
   currentTask?: Task;

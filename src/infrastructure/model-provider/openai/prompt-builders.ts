@@ -108,6 +108,7 @@ export function buildConversationReplyPrompt(
     safeJsonBlock({
       conversationId: request.conversationId,
       userMessage: request.userMessage,
+      tasks: request.tasks,
       currentTask: request.currentTask ?? null,
       relevantTasks: request.relevantTasks,
       conversationSummary: request.conversationSummary ?? null,

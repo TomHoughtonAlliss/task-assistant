@@ -416,6 +416,10 @@ export interface StateStore {
     conversationId: ConversationId,
   ): ConversationSummaryRecord | null;
   /**
+   * Clears the active bounded conversation summary and current-task pointer for one conversation.
+   */
+  clearConversationSummary(conversationId: ConversationId): void;
+  /**
    * Saves one action record used for confirmation and dedupe tracking.
    */
   saveActionRecord(record: ActionRecord): void;
