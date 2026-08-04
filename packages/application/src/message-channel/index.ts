@@ -2,6 +2,9 @@ export type {
   InboundMessage,
   MessageChannel,
   MessageChannelCapabilities,
+  MessageChannelCommandFailure,
+  MessageChannelCommandResult,
+  MessageChannelCommandSuccess,
   MessageDeliveryError,
   MessageDeliveryErrorCode,
   MessageDeliveryFailure,
@@ -9,6 +12,7 @@ export type {
   MessageDeliverySuccess,
   MessageChannelName,
   OutboundMessage,
+  SetMessageReactionInput,
 } from "./types.js";
 export {
   messageChannelNameSchema,

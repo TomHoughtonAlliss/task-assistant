@@ -1,6 +1,7 @@
 import { ConversationContextLoader } from "./conversation-context-loader.js";
 import { ConversationContextTracker } from "./conversation-context-tracker.js";
 import { ResetConversationHandler } from "./reset-conversation-handler.js";
+import { runWithWorkingIndicator } from "./working-indicator.js";
 import type { OutboundMessage } from "../message-channel/index.js";
 import type {
   HandleInboundMessageInput,
@@ -56,6 +57,19 @@ export class InboundMessageHandler {
    * - returns `message_delivery_failed` when the outbound channel cannot send.
    */
   public async handle(
+    input: HandleInboundMessageInput,
+  ): Promise<HandleInboundMessageResult> {
+    return runWithWorkingIndicator(
+      this.dependencies.messageChannel,
+      input.inboundMessage,
+      async () => this.handleWithoutIndicator(input),
+    );
+  }
+
+  /**
+   * Handles one inbound turn after the typing indicator has already been started.
+   */
+  private async handleWithoutIndicator(
     input: HandleInboundMessageInput,
   ): Promise<HandleInboundMessageResult> {
     if (isResetCommand(input.inboundMessage.text)) {
