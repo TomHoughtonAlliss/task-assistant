@@ -43,6 +43,10 @@
     "./task-selection": {
       "types": "./dist/task-selection/index.d.ts",
       "default": "./dist/task-selection/index.js"
+    },
+    "./task-actions": {
+      "types": "./dist/task-actions/index.d.ts",
+      "default": "./dist/task-actions/index.js"
     }
   },
   "files": [

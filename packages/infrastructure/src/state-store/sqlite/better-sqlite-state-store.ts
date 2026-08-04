@@ -619,8 +619,7 @@ export class BetterSqliteStateStore implements StateStore {
             error_message
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            idempotency_key = excluded.idempotency_key,
+          ON CONFLICT(idempotency_key) DO UPDATE SET
             conversation_id = excluded.conversation_id,
             task_id = excluded.task_id,
             action_type = excluded.action_type,
@@ -632,6 +631,7 @@ export class BetterSqliteStateStore implements StateStore {
             confirmed_at = excluded.confirmed_at,
             executed_at = excluded.executed_at,
             error_message = excluded.error_message
+          WHERE action_records.status NOT IN ('executed', 'rejected')
         `,
       )
       .run(
@@ -679,6 +679,65 @@ export class BetterSqliteStateStore implements StateStore {
       .get(idempotencyKey) as ActionRecordRow | undefined;
 
     return row ? mapActionRecordRow(row) : null;
+  }
+
+  /**
+   * Returns action records for a conversation, newest first, optionally filtered by status.
+   */
+  public listActionRecordsForConversation(
+    conversationId: string,
+    status?: ActionRecord["status"],
+  ): ActionRecord[] {
+    if (status) {
+      const rows = this.database
+        .prepare(
+          `
+            SELECT
+              id,
+              idempotency_key,
+              conversation_id,
+              task_id,
+              action_payload,
+              status,
+              source_message_id,
+              proposed_at,
+              confirmed_at,
+              executed_at,
+              error_message
+            FROM action_records
+            WHERE conversation_id = ?
+              AND status = ?
+            ORDER BY proposed_at DESC, id DESC
+          `,
+        )
+        .all(conversationId, status) as ActionRecordRow[];
+
+      return rows.map(mapActionRecordRow);
+    }
+
+    const rows = this.database
+      .prepare(
+        `
+          SELECT
+            id,
+            idempotency_key,
+            conversation_id,
+            task_id,
+            action_payload,
+            status,
+            source_message_id,
+            proposed_at,
+            confirmed_at,
+            executed_at,
+            error_message
+          FROM action_records
+          WHERE conversation_id = ?
+          ORDER BY proposed_at DESC, id DESC
+        `,
+      )
+      .all(conversationId) as ActionRecordRow[];
+
+    return rows.map(mapActionRecordRow);
   }
 
   /**

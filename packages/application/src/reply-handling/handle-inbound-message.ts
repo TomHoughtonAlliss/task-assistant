@@ -11,6 +11,12 @@ import type {
   ReplyHandlingPlan,
 } from "./types.js";
 import type { ConversationReplyRequest } from "../model-provider/index.js";
+import {
+  appendActionOutcomeNotes,
+  processProposedActions,
+  resolvePendingActions,
+} from "../task-actions/index.js";
+import type { ConversationReply } from "@task-assistant/domain";
 
 /**
  * Orchestrates one inbound conversational turn after transport-specific parsing has completed.
@@ -43,6 +49,11 @@ export class InboundMessageHandler {
 
   /**
    * Handles one normalized inbound user message.
+   *
+   * Failure modes:
+   * - forwards reset failures as `reset_failed`;
+   * - forwards model refusals and provider failures unchanged;
+   * - returns `message_delivery_failed` when the outbound channel cannot send.
    */
   public async handle(
     input: HandleInboundMessageInput,
@@ -93,6 +104,34 @@ export class InboundMessageHandler {
     }
 
     const context = await this.contextLoader.load(input.inboundMessage);
+    const pendingResolution = await resolvePendingActions(
+      {
+        taskProvider: this.dependencies.taskProvider,
+        stateStore: this.dependencies.stateStore,
+      },
+      {
+        conversationId: input.inboundMessage.conversationId,
+        userMessage: input.inboundMessage.text,
+        occurredAt: input.inboundMessage.occurredAt,
+      },
+    );
+
+    if (
+      pendingResolution.decision !== "none" &&
+      pendingResolution.acknowledgement
+    ) {
+      return this.sendAndRecord({
+        input,
+        context,
+        reply: {
+          message: pendingResolution.acknowledgement,
+          proposedActions: [],
+          currentTaskId: context.currentTask?.id ?? null,
+        },
+        modelRequest: this.buildModelRequest(input, context),
+      });
+    }
+
     const modelRequest = this.buildModelRequest(input, context);
     const modelResult = await this.dependencies.modelProvider.generateConversationReply(
       modelRequest,
@@ -120,15 +159,54 @@ export class InboundMessageHandler {
       };
     }
 
-    const plan: ReplyHandlingPlan = {
+    const actionResult = await processProposedActions(
+      {
+        taskProvider: this.dependencies.taskProvider,
+        stateStore: this.dependencies.stateStore,
+      },
+      {
+        conversationId: input.inboundMessage.conversationId,
+        sourceMessageId: input.inboundMessage.messageId,
+        tasks: context.tasks,
+        proposedActions: modelResult.value.proposedActions,
+        occurredAt: input.inboundMessage.occurredAt,
+      },
+    );
+
+    const reply: ConversationReply = {
+      ...modelResult.value,
+      message: appendActionOutcomeNotes(
+        modelResult.value.message,
+        actionResult,
+      ),
+    };
+
+    return this.sendAndRecord({
+      input,
       context,
+      reply,
       modelRequest,
-      reply: modelResult.value,
+    });
+  }
+
+  /**
+   * Sends one outbound reply and persists the conversational turn when delivery succeeds.
+   */
+  private async sendAndRecord(input: {
+    input: HandleInboundMessageInput;
+    context: ReplyHandlingContext;
+    reply: ConversationReply;
+    modelRequest: ReplyHandlingModelRequest;
+  }): Promise<HandleInboundMessageResult> {
+    const plan: ReplyHandlingPlan = {
+      context: input.context,
+      modelRequest: input.modelRequest,
+      reply: input.reply,
       sendPlan: {
         outboundMessage: {
-          conversationId: input.inboundMessage.conversationId,
-          body: modelResult.value.message,
-          replyToMessageId: input.inboundMessage.messageId,
+          conversationId: input.input.inboundMessage.conversationId,
+          body: input.reply.message,
+          replyToMessageId: input.input.inboundMessage.messageId,
         },
       },
     };
@@ -140,6 +218,7 @@ export class InboundMessageHandler {
     if (plan.sendPlan.outboundMessage.replyToMessageId) {
       outboundMessage.replyToMessageId = plan.sendPlan.outboundMessage.replyToMessageId;
     }
+
     const messageResult = await this.dependencies.messageChannel.sendMessage(
       outboundMessage,
     );
@@ -154,9 +233,9 @@ export class InboundMessageHandler {
     }
 
     this.contextTracker.recordTurn({
-      inboundMessage: input.inboundMessage,
-      context,
-      reply: modelResult.value,
+      inboundMessage: input.input.inboundMessage,
+      context: input.context,
+      reply: input.reply,
       outboundMessage: plan.sendPlan.outboundMessage,
       delivery: messageResult,
     });
