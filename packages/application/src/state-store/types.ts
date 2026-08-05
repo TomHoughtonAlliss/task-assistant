@@ -428,6 +428,13 @@ export interface StateStore {
    */
   getActionRecordByIdempotencyKey(idempotencyKey: string): ActionRecord | null;
   /**
+   * Returns action records for a conversation, newest first, optionally filtered by status.
+   */
+  listActionRecordsForConversation(
+    conversationId: ConversationId,
+    status?: ActionRecordStatus,
+  ): ActionRecord[];
+  /**
    * Closes the underlying persistence resources.
    */
   close(): void;

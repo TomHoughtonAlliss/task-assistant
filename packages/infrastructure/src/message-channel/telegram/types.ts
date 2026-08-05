@@ -57,6 +57,27 @@ export type TelegramSendMessageResponse = z.infer<
   typeof telegramSendMessageResponseSchema
 >;
 
+/**
+ * Successful Telegram Bot API response that returns a bare boolean result.
+ */
+export const telegramBooleanSuccessSchema = z.object({
+  ok: z.literal(true),
+  result: z.literal(true),
+});
+
+/**
+ * Union schema for Telegram boolean-result methods such as sendChatAction and setMessageReaction.
+ */
+export const telegramBooleanResponseSchema = z.union([
+  telegramBooleanSuccessSchema,
+  telegramSendMessageFailureSchema,
+]);
+
+/**
+ * Union type for Telegram boolean-result methods.
+ */
+export type TelegramBooleanResponse = z.infer<typeof telegramBooleanResponseSchema>;
+
 const telegramUserSchema = z.object({
   id: z.union([z.number().int(), z.string()]),
 });

@@ -1,14 +1,18 @@
 import type {
   InboundMessage,
   MessageChannel,
+  MessageChannelCommandResult,
   MessageDeliveryError,
   MessageDeliveryFailure,
   MessageDeliveryResult,
   OutboundMessage,
+  SetMessageReactionInput,
 } from "@task-assistant/application/message-channel";
+import type { ConversationId } from "@task-assistant/domain";
 import {
   telegramGetUpdatesResponseSchema,
   telegramUpdateSchema,
+  telegramBooleanResponseSchema,
   telegramSendMessageResponseSchema,
   type TelegramGetUpdatesResponse,
   type TelegramSendMessageFailure,
@@ -79,6 +83,8 @@ export class TelegramMessageChannel implements MessageChannel {
    */
   public readonly capabilities = {
     sendMessage: true,
+    indicateTyping: true,
+    setMessageReaction: true,
     receiveViaWebhook: true,
     receiveViaPolling: true,
   } as const;
@@ -175,6 +181,69 @@ export class TelegramMessageChannel implements MessageChannel {
   }
 
   /**
+   * Broadcasts Telegram's short-lived typing indicator for the configured chat.
+   */
+  public async indicateTyping(
+    conversationId: ConversationId,
+  ): Promise<MessageChannelCommandResult> {
+    if (conversationId !== this.chatId) {
+      return {
+        ok: false,
+        error: buildDeliveryError(
+          "invalid_message",
+          "Typing conversation id does not match the configured Telegram chat",
+          false,
+          {
+            expectedConversationId: this.chatId,
+            conversationId,
+          },
+        ),
+      };
+    }
+
+    return this.sendBooleanCommand(this.buildSendChatActionUrl(), {
+      chat_id: coerceTelegramChatId(this.chatId),
+      action: "typing",
+    });
+  }
+
+  /**
+   * Sets or clears an emoji reaction on an existing Telegram message.
+   */
+  public async setMessageReaction(
+    input: SetMessageReactionInput,
+  ): Promise<MessageChannelCommandResult> {
+    if (input.conversationId !== this.chatId) {
+      return {
+        ok: false,
+        error: buildDeliveryError(
+          "invalid_message",
+          "Reaction conversation id does not match the configured Telegram chat",
+          false,
+          {
+            expectedConversationId: this.chatId,
+            conversationId: input.conversationId,
+          },
+        ),
+      };
+    }
+
+    return this.sendBooleanCommand(this.buildSetMessageReactionUrl(), {
+      chat_id: coerceTelegramChatId(this.chatId),
+      message_id: coerceTelegramMessageId(input.messageId),
+      reaction:
+        input.emoji === null
+          ? []
+          : [
+              {
+                type: "emoji",
+                emoji: input.emoji,
+              },
+            ],
+    });
+  }
+
+  /**
    * Parses one Telegram webhook payload into the normalized inbound-message shape.
    *
    * Returns `null` when the payload is valid Telegram data but not a supported plain-text message.
@@ -221,6 +290,20 @@ export class TelegramMessageChannel implements MessageChannel {
   }
 
   /**
+   * Builds the Telegram Bot API URL for `sendChatAction`.
+   */
+  private buildSendChatActionUrl(): string {
+    return `${this.apiBaseUrl}/bot${this.botToken}/sendChatAction`;
+  }
+
+  /**
+   * Builds the Telegram Bot API URL for `setMessageReaction`.
+   */
+  private buildSetMessageReactionUrl(): string {
+    return `${this.apiBaseUrl}/bot${this.botToken}/setMessageReaction`;
+  }
+
+  /**
    * Builds the Telegram Bot API URL for `getUpdates`.
    */
   private buildGetUpdatesUrl(): string {
@@ -228,11 +311,62 @@ export class TelegramMessageChannel implements MessageChannel {
   }
 
   /**
+   * Posts one Telegram Bot API command that returns a bare boolean result.
+   */
+  private async sendBooleanCommand(
+    url: string,
+    body: Record<string, unknown>,
+  ): Promise<MessageChannelCommandResult> {
+    try {
+      const response = await this.fetchImplementation(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      const responseText = await response.text();
+      const parsedResponse = telegramBooleanResponseSchema.safeParse(
+        parseTelegramResponse(responseText),
+      );
+
+      if (!parsedResponse.success) {
+        return {
+          ok: false,
+          error: buildDeliveryError(
+            "unknown",
+            "Telegram returned a response that did not match the expected Bot API schema",
+            false,
+            {
+              statusCode: String(response.status),
+              body: responseText,
+            },
+          ),
+        };
+      }
+
+      if (parsedResponse.data.ok) {
+        return { ok: true };
+      }
+
+      return {
+        ok: false,
+        error: mapTelegramApiFailure(parsedResponse.data),
+      };
+    } catch (error: unknown) {
+      return {
+        ok: false,
+        error: mapTransportFailure(error),
+      };
+    }
+  }
+
+  /**
    * Builds the JSON payload for one Telegram `sendMessage` request.
    */
   private buildRequestBody(message: OutboundMessage): Record<string, unknown> {
     const payload: Record<string, unknown> = {
-      chat_id: this.chatId,
+      chat_id: coerceTelegramChatId(this.chatId),
       text: message.body,
     };
 
@@ -469,6 +603,14 @@ function buildDeliveryError(
   }
 
   return error;
+}
+
+/**
+ * Converts an application-level chat identifier into the numeric-or-string shape Telegram accepts.
+ */
+function coerceTelegramChatId(chatId: string): number | string {
+  const numericChatId = Number(chatId);
+  return Number.isInteger(numericChatId) ? numericChatId : chatId;
 }
 
 /**

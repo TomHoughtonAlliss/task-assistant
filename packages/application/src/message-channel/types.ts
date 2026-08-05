@@ -20,6 +20,14 @@ export interface MessageChannelCapabilities {
    */
   sendMessage: true;
   /**
+   * Channel can broadcast a short-lived typing/activity indicator.
+   */
+  indicateTyping: boolean;
+  /**
+   * Channel can set or clear an emoji reaction on an existing message.
+   */
+  setMessageReaction: boolean;
+  /**
    * Channel can accept webhook-driven inbound messages.
    */
   receiveViaWebhook: boolean;
@@ -183,6 +191,55 @@ export type MessageDeliveryResult =
   | MessageDeliveryFailure;
 
 /**
+ * Successful non-message channel command such as typing or reaction updates.
+ */
+export interface MessageChannelCommandSuccess {
+  /**
+   * Indicates that the channel command succeeded.
+   */
+  ok: true;
+}
+
+/**
+ * Failed non-message channel command such as typing or reaction updates.
+ */
+export interface MessageChannelCommandFailure {
+  /**
+   * Indicates that the channel command failed.
+   */
+  ok: false;
+  /**
+   * Normalized failure details.
+   */
+  error: MessageDeliveryError;
+}
+
+/**
+ * Outcome returned by typing indicators and message-reaction commands.
+ */
+export type MessageChannelCommandResult =
+  | MessageChannelCommandSuccess
+  | MessageChannelCommandFailure;
+
+/**
+ * Input required to set or clear a reaction on an existing channel message.
+ */
+export interface SetMessageReactionInput {
+  /**
+   * Stable conversation identifier inside the message channel.
+   */
+  conversationId: ConversationId;
+  /**
+   * Target message identifier that should receive the reaction.
+   */
+  messageId: MessageId;
+  /**
+   * Emoji to apply, or `null` to clear the channel's reaction on the message.
+   */
+  emoji: string | null;
+}
+
+/**
  * Normalized application-facing interface for message delivery and inbound message intake.
  */
 export interface MessageChannel {
@@ -198,4 +255,24 @@ export interface MessageChannel {
    * Sends one outbound message through the channel.
    */
   sendMessage(message: OutboundMessage): Promise<MessageDeliveryResult>;
+  /**
+   * Broadcasts a short-lived typing/activity indicator for one conversation.
+   *
+   * Failure modes:
+   * - returns `unsupported_operation` when the channel cannot indicate typing;
+   * - returns transport and auth failures from the underlying provider.
+   */
+  indicateTyping(
+    conversationId: ConversationId,
+  ): Promise<MessageChannelCommandResult>;
+  /**
+   * Sets or clears an emoji reaction on an existing message.
+   *
+   * Failure modes:
+   * - returns `unsupported_operation` when reactions are unavailable;
+   * - returns transport and auth failures from the underlying provider.
+   */
+  setMessageReaction(
+    input: SetMessageReactionInput,
+  ): Promise<MessageChannelCommandResult>;
 }
